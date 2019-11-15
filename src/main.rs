@@ -1,15 +1,84 @@
 rltk::add_wasm_support!();
-use rltk::{Rltk, GameState, Console};
-struct State {}
-impl GameState for State{
-    fn tick(&mut self, ctx : &mut Rltk){
+use rltk::{Rltk, GameState, Console, RGB, VirtualKeyCode};
+use specs:: prelude::*;
+use std::cmp::{max, min};
+#[macro_use]
+extern crate specs_derive;
+
+struct State {
+    ecs: World
+}
+
+#[derive(Component)]
+struct Position {
+    x: i32,
+    y: i32,
+}
+
+
+
+#[derive(Component)]
+struct Renderable {
+    glyph: u8,
+    fg: RGB,
+    bg: RGB,
+}
+
+#[derive(Component)]
+struct LeftMover {}
+
+
+impl GameState for State {
+    fn tick(&mut self, ctx : &mut Rltk) {
         ctx.cls();
-        ctx.print(1, 1, "Hello Rust World");
+        let positions = self.ecs.read_storage::<Position>();
+        let renderables = self.ecs.read_storage::<Renderable>();
+
+        for (pos, render) in (&positions, &renderables).join() {
+            ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
+        }
     }
 }
 
+
+// impl Component for Position {
+//     type Storage = VecStorage<Self>;
+// }
+
+
+
+
 fn main() {
-    let context = Rltk::init_simple8x8(80, 50, "grrr", "resources");
-    let gs = State{ };
+    let context = Rltk::init_simple8x8(80, 50, "Hello Rust World", "resources");
+    let mut gs = State {
+        ecs: World::new()
+    };
+    gs.ecs.register::<Position>();
+    gs.ecs.register::<Renderable>();
+    gs.ecs.register::<LeftMover>();
+
+    gs.ecs
+        .create_entity()
+        .with(Position { x: 40, y: 25 })
+        .with(Renderable {
+            glyph: rltk::to_cp437('@'),
+            fg: RGB::named(rltk::YELLOW),
+            bg: RGB::named(rltk::BLACK),
+        })
+        .build();
+
+    for i in 0..10 {
+        gs.ecs
+        .create_entity()
+        .with(Position { x: i * 7, y: 20 })
+        .with(Renderable {
+            glyph: rltk::to_cp437('☺'),
+            fg: RGB::named(rltk::RED),
+            bg: RGB::named(rltk::BLACK),
+        })
+        .with(LeftMover{})
+        .build();
+    }
+
     rltk::main_loop(context, gs);
 }
